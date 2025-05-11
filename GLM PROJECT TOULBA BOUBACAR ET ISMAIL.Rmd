@@ -1,0 +1,427 @@
+---
+title: "glm project"
+author: "TOULBA BOUBACAR et  CHEMLAL ISMAIL"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Charger les bibliothèques
+
+```{r  Charger les bibliothèques}
+
+library(readr)         # Pour lire le fichier CSV
+library(dplyr)         # Pour manipuler les données
+#library(summarytools)  # Pour des résumés détaillés
+library(ggplot2)       # Pour la visualisation
+library(psych)         # Pour des statistiques descriptives avancées
+library(skimr) 
+
+library(gridExtra) # multiple plots in one graph
+
+
+knitr::opts_chunk$set(comment=NA, fig.align='center')
+
+```
+
+#Charger les données
+
+```{r}
+data <- read_csv("D:/s4 partie2/GLM/glm project/loans50k.csv")
+```
+```{r}
+head(data)
+```
+
+```{r}
+str(data)
+
+```
+
+```{r}
+names(data)
+```
+```{r}
+table(data$status)
+prop.table(table(df$status)) * 100
+
+```
+
+```{r}
+dim(data)
+
+```
+
+
+```{r}
+
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+
+# Nettoyage : retirer les NA pour les variables catégoriques
+data_clean <- data %>%
+  filter(!is.na(term), !is.na(grade), !is.na(home), !is.na(verified), !is.na(rate))
+
+# Palette douce
+palette_couleur <- "#4C9F70"
+
+# Histogramme pour 'rate'
+plot_rate <- ggplot(data_clean, aes(x = rate)) +
+  geom_histogram(fill = "#58A4B0", color = "white", bins = 30) +
+  theme_light(base_size = 12) +
+  ggtitle("Distribution of Rate") +
+  xlab("Rate") + ylab("Count")
+
+# Fonction pour les barplots
+make_barplot <- function(var_name, title) {
+  ggplot(data_clean, aes_string(x = var_name)) +
+    geom_bar(fill = palette_couleur, color = "white") +
+    theme_light(base_size = 12) +
+    ggtitle(title) +
+    xlab(NULL) + ylab("Count") +
+    theme(axis.text.x = element_text(angle = 20, hjust = 1))
+}
+
+# Graphiques pour variables catégoriques
+plot_term <- make_barplot("term", "Distribution of Term")
+plot_grade <- make_barplot("grade", "Distribution of Grade")
+plot_home <- make_barplot("home", "Distribution of Home Ownership")
+plot_verified <- make_barplot("verified", "Distribution of Verification Status")
+
+# Affichage final
+grid.arrange(plot_term, plot_rate, plot_grade, plot_home, plot_verified, ncol = 2)
+
+
+```
+#Preparing and Cleaning the Data
+
+
+
+```{r}
+data = data %>% filter(status == "Fully Paid" | status == "Charged Off" | status == "Default")
+data = data %>% mutate(response = case_when(status == "Fully Paid" ~ "Good", TRUE ~ "Bad"))
+data$response <- as.factor(data$response)
+```
+
+```{r}
+#subsection{Transformation de la variable length
+
+
+data = data %>% mutate(length = case_when(length == "< 1 year" ~ 0, length == "1 year" ~ 1, 
+                                            length == "2 years" ~ 2, length == "3 years" ~ 3,
+                                            length == "4 years" ~ 4,length == "5 years" ~ 5, 
+                                            length == "6 years" ~ 6, length == "7 years" ~ 7,
+                                            length == "8 years" ~ 8, length == "9 years" ~ 9, 
+                                            length == "10+ years" ~ 10, TRUE ~ NA_real_))
+
+```
+
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Créer une variable catégorielle claire pour l'affichage
+data <- data %>%
+  mutate(length_label = factor(length,
+    levels = 0:10,
+    labels = c("< 1 year", "1 year", "2 years", "3 years", "4 years",
+               "5 years", "6 years", "7 years", "8 years", "9 years", "10+ years")
+  ))
+
+# Histogramme avec des étiquettes lisibles sur l'axe X
+ggplot(data, aes(x = length_label)) +
+  geom_bar(fill = "#69b3a2", color = "black") +
+  labs(
+    title = "Distribution de l'ancienneté professionnelle",
+    x = "Ancienneté dans l'emploi actuel",
+    y = "Nombre d'emprunteurs"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+
+
+```{r}
+# 1. Visualisation de la corrélation entre 'amount' et 'payment'
+ggplot(data, aes(x = amount, y = payment)) +
+  geom_point(color = "blue", alpha = 0.5) +  # Nuage de points
+  geom_smooth(method = "lm", color = "red", se = FALSE) +  # Droite de régression
+  labs(title = "Scatter Plot of Loan Amount vs. Monthly Payment", 
+       x = "Loan Amount", y = "Monthly Payment") +
+  theme_minimal()
+```
+```{r}
+# 2. Calcul de la corrélation linéaire entre 'amount' et 'payment'
+correlation <- cor(data$amount, data$payment)
+cat("Correlation between loan amount and monthly payment:", correlation, "\n")
+```
+
+
+
+
+
+
+
+```{r}
+employment_summary <- data %>%
+  group_by(employment) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+print(employment_summary)
+```
+
+
+
+
+```{r}
+# 3. Supprimer les variables 'payment' et 'employment'
+data2 <- data %>% select(-c(payment, employment))
+```
+
+```{r}
+dim(data2)
+```
+```{r}
+data2 = data2 %>% 
+  mutate(accOpen24 = case_when(accOpen24 > 19 ~ 20, TRUE ~ as.numeric(accOpen24)))
+
+other1 = data2 %>% group_by(state) %>% summarise(count = n()) %>% 
+  filter(count < 150) %>% pull(1)
+other2 = data2 %>% group_by(state) %>% summarise(count = n()) %>% 
+  filter(count >= 150 & count < 175) %>% pull(1)
+other3 = data2 %>% group_by(state) %>% summarise(count = n()) %>% 
+  filter(count >= 175 & count < 200) %>% pull(1)
+data2 = data2 %>% mutate(state = case_when(state %in% other1~"OT",
+                                   state %in% other2~"O2",
+                                   state %in% other3~"O3",
+                                   TRUE~state))
+```
+
+
+
+
+
+#
+
+```{r}
+data2 = data2 %>% mutate(income = log(income), totalBal = log(totalBal+1), totalRevLim = log(totalRevLim), 
+                         avgBal = log(avgBal+1), bcOpen = log(bcOpen+1), pubRec = log(pubRec+1), 
+                         inq6mth = log(inq6mth+1), delinq2yr = log(delinq2yr+1))
+```
+
+
+```{r}
+sapply(data, function(x) sum(is.na(x)))
+```
+
+```{r}
+library(tidyr)
+data2 = data2 %>% drop_na()
+```
+
+
+
+
+
+
+```{r}
+# Fig 5 : Distribution of response
+p1 <- ggplot(data2, aes(x = response)) +
+  geom_bar(fill = "grey30") +
+  labs(title = "Fig 5. Distribution of response")
+
+# Fig 6 : Histogram for term
+p2 <- ggplot(data2, aes(x = term, fill = response)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Fig 6. Histogram for term")
+
+# Fig 7 : Histogram for rate
+p3 <- ggplot(data2, aes(x = rate, fill = response)) +
+  geom_histogram(position = "identity", alpha = 0.7, bins = 30) +
+  labs(title = "Fig 7. Histogram for rate")
+
+# Fig 8 : Histogram for grade
+p4 <- ggplot(data2, aes(x = grade, fill = response)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Fig 8. Histogram for grade")
+
+# Fig 9 : Histogram for home
+p5 <- ggplot(data2, aes(x = home, fill = response)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Fig 9. Histogram for home")
+
+# Fig 10 : Histogram for verified
+p6 <- ggplot(data2, aes(x = verified, fill = response)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Fig 10. Histogram for verified")
+
+# Affichage en grille
+grid.arrange(p1, p2, p3, p4, p5, p6, ncol = 3)
+
+```
+
+
+
+
+##The Logistic Model
+
+```{r}
+smp_size = floor(0.8 * nrow(data2)) 
+set.seed(10)
+train_ind = sample(seq_len(nrow(data2)), size = smp_size)
+train = data2[train_ind, ]
+test = data2[-train_ind, ]
+train = train %>% select(-c(totalPaid,status, loanID)) 
+```
+
+```{r}
+full <- glm(response~.,data=train, family = "binomial")
+```
+
+
+```{r}
+full$coefficients
+```
+
+
+```{r}
+probs = predict(full,newdata = test,type = "response")
+
+probs_df = data.frame(prob = probs)
+probs_df$ID = seq.int(nrow(probs_df))
+test$ID = seq.int(nrow(test))
+test2 = test %>% select(ID, response, totalPaid, amount)
+predictions <- merge(probs_df,test2,by="ID")
+
+threshold = 0.5
+
+predictions = predictions %>% mutate(predicted = case_when((prob > threshold)~'Good',TRUE~'Bad'))
+colnames(predictions)[colnames(predictions)=="response"] <- "actual"
+predictions = predictions %>% 
+  mutate(confusion = case_when((prob >  threshold & actual == 'Good')~'TP',
+                               (prob <= threshold & actual == 'Bad')~'TN',
+                               (prob >  threshold & actual == 'Bad')~'FP',
+                               (prob <= threshold & actual == 'Good')~'FN',TRUE~NA_character_))
+
+conf_matrix = with(predictions,table(actual, predicted))
+addmargins(conf_matrix)
+```
+
+
+
+```{r}
+library(ggplot2)
+
+ggplot(predictions, aes(x = prob, fill = actual)) +
+  geom_histogram(binwidth = 0.05, position = "identity", alpha = 0.6) +
+  labs(title = "Distribution des probabilités prédites", x = "Probabilité prédite", y = "Fréquence") +
+  theme_minimal()
+
+```
+```{r}
+library(pROC)
+
+roc_obj <- roc(predictions$actual, predictions$prob, levels = c("Bad", "Good"))
+plot(roc_obj, col = "#2C3E50", main = "Courbe ROC")
+auc(roc_obj)  # Pour afficher l'AUC
+
+```
+
+```{r}
+probs = predict(full,newdata = test,type = "response")
+probs_df = data.frame(prob = probs)
+min = min(probs)
+max = max(probs)
+
+probs_df$ID = seq.int(nrow(probs_df))
+test$ID = seq.int(nrow(test))
+test2 = test %>% select(ID, response, totalPaid, amount)
+predictions <- merge(probs_df,test2,by="ID")
+
+accur_calc = function(predictions, th){
+  predictions = predictions %>% mutate(predicted = case_when((prob > th)~'Good',TRUE~'Bad'))
+  colnames(predictions)[colnames(predictions)=="response"] <- "actual"
+  predictions = predictions %>% 
+    mutate(confusion = case_when((prob >  th & actual == 'Good')~'TP',
+                                 (prob <= th & actual == 'Bad')~'TN',
+                                 (prob >  th & actual == 'Bad')~'FP',
+                                 (prob <= th & actual == 'Good')~'FN',TRUE~NA_character_))
+  conf_matrix = with(predictions,table(actual, predicted))
+  TN = conf_matrix[1]
+  FN = conf_matrix[2]
+  FP = conf_matrix[3]
+  TP = conf_matrix[4]
+  accuracy = (TP + TN)/(FP+FN+TN+TP) * 100
+  sensitivity = TP/(TP + FN) * 100
+  specificity = TN/(TN + FP) * 100
+  
+  profit_df = predictions %>% filter(predicted == 'Good') %>% 
+    summarise(profit = sum(totalPaid - amount))
+  profit = profit_df[1,1]/(1000000)  #in millions
+  
+  return(c(th, accuracy, sensitivity, specificity, profit))
+}
+
+range = seq(min, max, by = .005)
+conf_df = data.frame(threshold = double(),accuracy= double(),
+                     sensitivity= double(),specificity= double(),profit= double())
+jj = 0
+
+for(ii in range){
+  jj = jj+1
+  vals = accur_calc(predictions, ii)
+  conf_df [jj,] = vals
+}
+```
+
+
+
+
+```{r}
+
+library(ggplot2)
+library(tidyr)
+
+# Supposons que conf_df contient : threshold, accuracy, sensitivity, specificity, profit
+
+# Transformation des données pour ggplot2 (format long)
+conf_df_long <- conf_df %>%
+  pivot_longer(cols = c(accuracy, sensitivity, specificity, profit),
+               names_to = "metric", values_to = "value")
+
+# Graphique
+ggplot(conf_df_long, aes(x = threshold, y = value, color = metric)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Évolution des métriques selon le seuil de classification",
+    x = "Seuil de classification (threshold)",
+    y = "Valeur (%) ou Profit (en millions)",
+    color = "Métrique"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+
+
+```
+```{r}
+max_acc = conf_df %>% filter(accuracy == max(accuracy)) %>% 
+  select(accuracy, threshold, sensitivity, specificity)
+max_acc
+```
+
+
+
